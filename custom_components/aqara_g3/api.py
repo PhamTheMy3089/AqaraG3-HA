@@ -6,8 +6,6 @@ from typing import Any
 
 import aiohttp
 
-from homeassistant.helpers.aiohttp_client import DEFAULT_TIMEOUT
-
 from .const import API_BASE_URL, API_RESOURCE_QUERY
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,7 +57,7 @@ class AqaraG3API:
                 url,
                 json=data,
                 headers=headers,
-                timeout=DEFAULT_TIMEOUT,
+                timeout=aiohttp.ClientTimeout(total=10),
             ) as response:
                 if response.status == 401 or response.status == 403:
                     error_text = await response.text()
