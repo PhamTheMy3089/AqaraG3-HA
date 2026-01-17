@@ -43,6 +43,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
         self._logged_first_response = False
         self._face_map: dict[str, str] = {}
         self._last_face_info_fetch: float | None = None
+        self._logged_face_raw = False
 
     async def _async_update_data(self) -> dict:
         """Fetch data from Aqara API."""
@@ -60,6 +61,8 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                 last_face_id = self._extract_last_face_id(face_event)
                 if last_face_id and self._face_map:
                     last_face_name = self._face_map.get(last_face_id)
+                if not self._logged_face_raw:
+                    _LOGGER.warning("Aqara G3 FACE EVENT RAW: %s", face_event)
             except Exception as err:
                 _LOGGER.debug("Failed to fetch face history: %s", err)
 
@@ -109,6 +112,9 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                     "Refreshed face map: count=%s",
                     len(self._face_map),
                 )
+            if not self._logged_face_raw:
+                _LOGGER.warning("Aqara G3 FACE INFO RAW: %s", face_info)
+                self._logged_face_raw = True
         except Exception as err:
             _LOGGER.debug("Failed to refresh face info: %s", err)
 
