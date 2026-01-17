@@ -74,6 +74,7 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
         self._attr_name = f"Aqara G3 {sensor_name}"
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{sensor_key}"
         self._attr_icon = icon
+        self._logged_no_data = False
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -110,6 +111,13 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
             else:
                 result_list = data.get("resultList", []) if isinstance(data, dict) else []
             if not result_list or len(result_list) == 0:
+                if not self._logged_no_data:
+                    _LOGGER.debug(
+                        "No resultList data for %s. Top-level keys: %s",
+                        self._sensor_key,
+                        list(data.keys()) if isinstance(data, dict) else None,
+                    )
+                    self._logged_no_data = True
                 return None
 
             device_data = result_list[0]
@@ -117,6 +125,14 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
                 return None
 
             sensor_data = device_data.get(self._api_key, {})
+            if not sensor_data and not self._logged_no_data:
+                _LOGGER.debug(
+                    "Missing api key '%s' for %s. Device keys: %s",
+                    self._api_key,
+                    self._sensor_key,
+                    list(device_data.keys()),
+                )
+                self._logged_no_data = True
             if isinstance(sensor_data, dict):
                 value = sensor_data.get("value")
             else:
