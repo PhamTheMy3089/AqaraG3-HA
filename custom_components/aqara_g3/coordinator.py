@@ -44,7 +44,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from Aqara API."""
         try:
             data = await self.api.get_device_status()
-            _LOGGER.warning("Aqara G3 RAW RESPONSE: %s", data)
+            attrs = self._extract_attr_map(data)
             if not self._logged_first_response:
                 self._logged_first_response = True
                 result = data.get("result") if isinstance(data, dict) else None
@@ -60,7 +60,63 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                     type(result).__name__ if result is not None else None,
                     len(result_list) if isinstance(result_list, list) else None,
                 )
-            return data
+                _LOGGER.debug(
+                    "Aqara G3 normalized attrs: count=%s, keys=%s",
+                    len(attrs),
+                    list(attrs.keys()) if attrs else None,
+                )
+            return attrs
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
 
+    @staticmethod
+    def _extract_attr_map(data: dict | None) -> dict:
+        """Normalize API response into a flat attr->value dict."""
+        if not isinstance(data, dict):
+            return {}
+
+        result = data.get("result")
+        attrs: dict[str, object] = {}
+
+        # Case 1: result is a list of {attr, value}
+        if isinstance(result, list):
+            for item in result:
+                if isinstance(item, dict) and "attr" in item:
+                    attrs[item["attr"]] = item.get("value")
+            return attrs
+
+        # Case 2: result is a dict with resultList
+        if isinstance(result, dict):
+            result_list = result.get("resultList")
+            if isinstance(result_list, list) and result_list:
+                # If result_list[0] is a dict of keys -> {value}
+                first = result_list[0]
+                if isinstance(first, dict) and "attr" not in first:
+                    for key, value in first.items():
+                        if isinstance(value, dict) and "value" in value:
+                            attrs[key] = value.get("value")
+                        else:
+                            attrs[key] = value
+                    return attrs
+
+                # Otherwise treat as list of {attr, value}
+                for item in result_list:
+                    if isinstance(item, dict) and "attr" in item:
+                        attrs[item["attr"]] = item.get("value")
+                return attrs
+
+            # If result itself is a map of key -> {value}
+            for key, value in result.items():
+                if isinstance(value, dict) and "value" in value:
+                    attrs[key] = value.get("value")
+                else:
+                    attrs[key] = value
+            return attrs
+
+        # Case 3: fallback to top-level resultList
+        result_list = data.get("resultList")
+        if isinstance(result_list, list):
+            for item in result_list:
+                if isinstance(item, dict) and "attr" in item:
+                    attrs[item["attr"]] = item.get("value")
+        return attrs

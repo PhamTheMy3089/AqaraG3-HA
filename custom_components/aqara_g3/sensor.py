@@ -22,7 +22,7 @@ SENSOR_TYPES: dict[str, tuple[str, type[bool] | type[int] | type[str]]] = {
     "pets_detect": ("pets_detect_enable", bool),
     "human_detect": ("human_detect_enable", bool),
     "wifi_rssi": ("device_wifi_rssi", int),
-    "alarm_status": ("alarm_status", str),
+    "alarm_status": ("alarm_status", bool),
 }
 
 
@@ -96,47 +96,25 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
         if not self._api_key:
             return None
 
-        # Parse API response structure: result.resultList[0].{api_key}.value
+        # Coordinator returns a normalized attr->value dict
         try:
             data = self.coordinator.data
             if not isinstance(data, dict):
                 return None
 
-            result = data.get("result")
-            # Handle variations of response shape
-            if isinstance(result, list):
-                result_list = result
-            elif isinstance(result, dict):
-                result_list = result.get("resultList", [])
-            else:
-                result_list = data.get("resultList", []) if isinstance(data, dict) else []
-            if not result_list or len(result_list) == 0:
+            value = data.get(self._api_key)
+            if value is None:
                 if not self._logged_no_data:
                     _LOGGER.debug(
-                        "No resultList data for %s. Top-level keys: %s",
+                        "Missing api key '%s' for %s. Available keys: %s",
+                        self._api_key,
                         self._sensor_key,
-                        list(data.keys()) if isinstance(data, dict) else None,
+                        list(data.keys()),
                     )
                     self._logged_no_data = True
                 return None
-
-            device_data = result_list[0]
-            if not isinstance(device_data, dict):
-                return None
-
-            sensor_data = device_data.get(self._api_key, {})
-            if not sensor_data and not self._logged_no_data:
-                _LOGGER.debug(
-                    "Missing api key '%s' for %s. Device keys: %s",
-                    self._api_key,
-                    self._sensor_key,
-                    list(device_data.keys()),
-                )
-                self._logged_no_data = True
-            if isinstance(sensor_data, dict):
-                value = sensor_data.get("value")
-            else:
-                value = sensor_data
+            # Reset log flag when data becomes available again
+            self._logged_no_data = False
 
             if value is None:
                 return None
