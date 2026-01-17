@@ -14,10 +14,7 @@
       },
       "init": {
         "title": "Map khuôn mặt",
-        "description": "Chọn person tương ứng với từng khuôn mặt Aqara.",
-        "data": {
-          "refresh_face_list": "Lấy lại danh sách khuôn mặt"
-        }
+        "description": "Chọn person tương ứng với từng khuôn mặt Aqara."
       }
     },
     "error": {

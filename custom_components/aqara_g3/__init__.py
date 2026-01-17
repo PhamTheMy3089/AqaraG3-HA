@@ -16,7 +16,12 @@ from .coordinator import AqaraG3DataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
-PLATFORMS: list[Platform] = [Platform.SENSOR, Platform.SWITCH, Platform.BINARY_SENSOR]
+PLATFORMS: list[Platform] = [
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+]
 
 
 async def async_setup(hass: HomeAssistant, config: dict) -> bool:

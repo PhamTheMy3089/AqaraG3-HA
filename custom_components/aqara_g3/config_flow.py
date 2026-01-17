@@ -140,15 +140,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Handle options step for mapping faces to persons."""
         if user_input is not None:
-            if user_input.get("refresh_face_list"):
-                data = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
-                if data and isinstance(data, dict):
-                    coordinator = data.get("coordinator")
-                    if coordinator:
-                        await coordinator.async_get_face_map(force_refresh=True)
-                return await self.async_step_init()
-
-            user_input.pop("refresh_face_list", None)
             face_name_map = {k: v for k, v in user_input.items() if v}
             return self.async_create_entry(
                 title="", data={CONF_FACE_NAME_MAP: face_name_map}
@@ -179,7 +170,6 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
-        schema_dict[vol.Optional("refresh_face_list", default=False)] = bool
 
         return self.async_show_form(
             step_id="init",
