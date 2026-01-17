@@ -11,6 +11,10 @@
           "userid": "User ID",
           "subject_id": "Subject ID (Device ID)"
         }
+      },
+      "init": {
+        "title": "Map faces",
+        "description": "Select a Home Assistant person for each Aqara face."
       }
     },
     "error": {

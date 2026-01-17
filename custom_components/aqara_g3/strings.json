@@ -11,6 +11,10 @@
           "userid": "User ID",
           "subject_id": "Subject ID (Device ID)"
         }
+      },
+      "init": {
+        "title": "Map khuôn mặt",
+        "description": "Chọn person tương ứng với từng khuôn mặt Aqara."
       }
     },
     "error": {

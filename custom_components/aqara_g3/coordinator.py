@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import AqaraG3API
-from .const import DOMAIN
+from .const import CONF_FACE_MAP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,6 +70,15 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                 attrs["last_face_id"] = last_face_id
             if last_face_name:
                 attrs["last_face_name"] = last_face_name
+            # Map face id to HA person if configured
+            face_map = self.config_entry.options.get(CONF_FACE_MAP, {})
+            if last_face_id and face_map:
+                person_entity_id = face_map.get(str(last_face_id))
+                if person_entity_id:
+                    state = self.hass.states.get(person_entity_id)
+                    attrs["last_face_person"] = (
+                        state.name if state and state.name else person_entity_id
+                    )
             if not self._logged_first_response:
                 self._logged_first_response = True
                 result = data.get("result") if isinstance(data, dict) else None
@@ -117,6 +126,13 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                 self._logged_face_raw = True
         except Exception as err:
             _LOGGER.debug("Failed to refresh face info: %s", err)
+
+    async def async_get_face_map(self, force_refresh: bool = False) -> dict[str, str]:
+        """Return face map, optionally forcing refresh."""
+        if force_refresh:
+            self._last_face_info_fetch = None
+        await self._maybe_refresh_face_map()
+        return dict(self._face_map)
 
     @staticmethod
     def _extract_attr_map(data: dict | None) -> dict:

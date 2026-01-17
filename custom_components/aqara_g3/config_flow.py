@@ -16,6 +16,7 @@ from .api import AqaraG3API
 from .const import (
     CONF_AQARA_URL,
     CONF_APPID,
+    CONF_FACE_MAP,
     CONF_SUBJECT_ID,
     CONF_TOKEN,
     CONF_USERID,
@@ -100,6 +101,12 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
         )
 
+    @staticmethod
+    @config_entries.callback
+    def async_get_options_flow(config_entry: ConfigEntry) -> config_entries.OptionsFlow:
+        """Return the options flow handler."""
+        return OptionsFlowHandler(config_entry)
+
 
 class CannotConnect(HomeAssistantError):
     """Error to indicate we cannot connect."""
@@ -107,4 +114,46 @@ class CannotConnect(HomeAssistantError):
 
 class InvalidAuth(HomeAssistantError):
     """Error to indicate there is invalid auth."""
+
+
+class OptionsFlowHandler(config_entries.OptionsFlow):
+    """Handle options flow for Aqara Camera G3."""
+
+    def __init__(self, config_entry: ConfigEntry) -> None:
+        """Initialize options flow."""
+        self.config_entry = config_entry
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle options step for mapping faces to persons."""
+        if user_input is not None:
+            face_map = {k: v for k, v in user_input.items() if v}
+            return self.async_create_entry(title="", data={CONF_FACE_MAP: face_map})
+
+        # Collect face list from coordinator
+        face_list: dict[str, str] = {}
+        data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        if data and isinstance(data, dict):
+            coordinator = data.get("coordinator")
+            if coordinator:
+                face_list = await coordinator.async_get_face_map()
+
+        # Collect person entities
+        person_entities = [state.entity_id for state in self.hass.states.async_all("person")]
+        person_options = [""] + person_entities
+
+        existing = self.config_entry.options.get(CONF_FACE_MAP, {})
+        schema_dict: dict[vol.Optional, object] = {}
+        for face_id, face_name in face_list.items():
+            label = f"{face_name} ({face_id})"
+            schema_dict[
+                vol.Optional(face_id, default=existing.get(face_id, ""))
+            ] = vol.In(person_options)
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=vol.Schema(schema_dict),
+            description_placeholders={"faces": ", ".join(face_list.values()) or "none"},
+        )
 
