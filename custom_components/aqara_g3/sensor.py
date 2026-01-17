@@ -101,8 +101,14 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
             if not isinstance(data, dict):
                 return None
 
-            result = data.get("result", {})
-            result_list = result.get("resultList", [])
+            result = data.get("result")
+            # Handle variations of response shape
+            if isinstance(result, list):
+                result_list = result
+            elif isinstance(result, dict):
+                result_list = result.get("resultList", [])
+            else:
+                result_list = data.get("resultList", []) if isinstance(data, dict) else []
             if not result_list or len(result_list) == 0:
                 return None
 
