@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aqara Camera G3",
+        "description": "Nhập thông tin xác thực Aqara API",
+        "data": {
+          "aqara_url": "Aqara URL",
+          "token": "Token",
+          "appid": "App ID",
+          "userid": "User ID",
+          "subject_id": "Subject ID (Device ID)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Không thể kết nối đến Aqara API",
+      "invalid_auth": "Thông tin xác thực không hợp lệ",
+      "unknown": "Đã xảy ra lỗi không xác định"
+    },
+    "abort": {
+      "already_configured": "Integration đã được cấu hình"
+    }
+  }
+}
+

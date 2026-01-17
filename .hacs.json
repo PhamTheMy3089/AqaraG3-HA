@@ -1,0 +1,7 @@
+{
+  "name": "Aqara Camera G3",
+  "render_readme": true,
+  "domains": ["aqara_g3"],
+  "iot_class": "Cloud Polling"
+}
+

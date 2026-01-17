@@ -1,0 +1,26 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Aqara Camera G3",
+        "description": "Enter your Aqara API credentials",
+        "data": {
+          "aqara_url": "Aqara URL",
+          "token": "Token",
+          "appid": "App ID",
+          "userid": "User ID",
+          "subject_id": "Subject ID (Device ID)"
+        }
+      }
+    },
+    "error": {
+      "cannot_connect": "Unable to connect to Aqara API",
+      "invalid_auth": "Invalid authentication credentials",
+      "unknown": "Unexpected error occurred"
+    },
+    "abort": {
+      "already_configured": "Integration is already configured"
+    }
+  }
+}
+
