@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import logging
 from datetime import timedelta
+import time
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -15,6 +16,7 @@ from .const import DOMAIN
 _LOGGER = logging.getLogger(__name__)
 
 SCAN_INTERVAL = timedelta(seconds=30)
+FACE_INFO_REFRESH_INTERVAL = timedelta(hours=12)
 
 
 class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
@@ -39,12 +41,32 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
         )
         self.config_entry = config_entry
         self._logged_first_response = False
+        self._face_map: dict[str, str] = {}
+        self._last_face_info_fetch: float | None = None
 
     async def _async_update_data(self) -> dict:
         """Fetch data from Aqara API."""
         try:
             data = await self.api.get_device_status()
             attrs = self._extract_attr_map(data)
+            last_face_id = None
+            last_face_name = None
+
+            # Enrich with face list (refresh every 12h) + last face event
+            await self._maybe_refresh_face_map()
+
+            try:
+                face_event = await self.api.get_last_face_event()
+                last_face_id = self._extract_last_face_id(face_event)
+                if last_face_id and self._face_map:
+                    last_face_name = self._face_map.get(last_face_id)
+            except Exception as err:
+                _LOGGER.debug("Failed to fetch face history: %s", err)
+
+            if last_face_id:
+                attrs["last_face_id"] = last_face_id
+            if last_face_name:
+                attrs["last_face_name"] = last_face_name
             if not self._logged_first_response:
                 self._logged_first_response = True
                 result = data.get("result") if isinstance(data, dict) else None
@@ -68,6 +90,27 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             return attrs
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
+
+    async def _maybe_refresh_face_map(self) -> None:
+        """Refresh face map at startup or every 12 hours."""
+        now = time.monotonic()
+        if (
+            self._last_face_info_fetch is not None
+            and now - self._last_face_info_fetch < FACE_INFO_REFRESH_INTERVAL.total_seconds()
+        ):
+            return
+
+        try:
+            face_info = await self.api.get_face_info()
+            self._face_map = self._extract_face_map(face_info)
+            self._last_face_info_fetch = now
+            if self._face_map:
+                _LOGGER.debug(
+                    "Refreshed face map: count=%s",
+                    len(self._face_map),
+                )
+        except Exception as err:
+            _LOGGER.debug("Failed to refresh face info: %s", err)
 
     @staticmethod
     def _extract_attr_map(data: dict | None) -> dict:
@@ -120,3 +163,53 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                 if isinstance(item, dict) and "attr" in item:
                     attrs[item["attr"]] = item.get("value")
         return attrs
+
+    @staticmethod
+    def _extract_face_map(data: dict | None) -> dict[str, str]:
+        """Extract face id -> name map from face info response."""
+        if not isinstance(data, dict):
+            return {}
+
+        result = data.get("result")
+        if isinstance(result, dict):
+            face_list = result.get("faceList") or result.get("list") or []
+        elif isinstance(result, list):
+            face_list = result
+        else:
+            face_list = data.get("faceList") or data.get("list") or []
+
+        face_map: dict[str, str] = {}
+        if isinstance(face_list, list):
+            for item in face_list:
+                if not isinstance(item, dict):
+                    continue
+                face_id = item.get("faceId") or item.get("id")
+                name = item.get("name") or item.get("faceName")
+                if face_id and name:
+                    face_map[str(face_id)] = str(name)
+        return face_map
+
+    @staticmethod
+    def _extract_last_face_id(data: dict | None) -> str | None:
+        """Extract the last face id from history log response."""
+        if not isinstance(data, dict):
+            return None
+
+        result = data.get("result")
+        if isinstance(result, dict):
+            history_list = result.get("history") or result.get("list") or result.get("resultList") or []
+        elif isinstance(result, list):
+            history_list = result
+        else:
+            history_list = data.get("history") or data.get("list") or []
+
+        if isinstance(history_list, list) and history_list:
+            item = history_list[0]
+            if isinstance(item, dict):
+                return (
+                    item.get("faceId")
+                    or item.get("value")
+                    or item.get("data")
+                    or item.get("attrValue")
+                )
+        return None

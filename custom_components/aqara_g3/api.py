@@ -6,7 +6,13 @@ from typing import Any
 
 import aiohttp
 
-from .const import API_BASE_URL, API_RESOURCE_QUERY, API_RESOURCE_WRITE
+from .const import (
+    API_BASE_URL,
+    API_FACE_INFO,
+    API_HISTORY_LOG,
+    API_RESOURCE_QUERY,
+    API_RESOURCE_WRITE,
+)
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -120,4 +126,28 @@ class AqaraG3API:
         }
 
         response = await self._request("POST", API_RESOURCE_WRITE, data=payload)
+        return response
+
+    async def get_face_info(self) -> dict[str, Any]:
+        """Get face info list."""
+        if not self._subject_id:
+            raise ValueError("subject_id is required to get face info")
+
+        endpoint = f"{API_FACE_INFO}?did={self._subject_id}"
+        response = await self._request("GET", endpoint)
+        return response
+
+    async def get_last_face_event(self) -> dict[str, Any]:
+        """Get the latest face detection event."""
+        if not self._subject_id:
+            raise ValueError("subject_id is required to get history log")
+
+        payload = {
+            "resourceIds": ["13.95.85"],
+            "scanId": "",
+            "size": "1",
+            "startTime": 1514736000000,
+            "subjectId": self._subject_id,
+        }
+        response = await self._request("POST", API_HISTORY_LOG, data=payload)
         return response

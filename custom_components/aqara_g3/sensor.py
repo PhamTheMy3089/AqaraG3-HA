@@ -23,6 +23,7 @@ SENSOR_TYPES: dict[str, tuple[str, type[bool] | type[int] | type[str]]] = {
     "human_detect": ("human_detect_enable", bool),
     "wifi_rssi": ("device_wifi_rssi", int),
     "alarm_status": ("alarm_status", bool),
+    "last_face_name": ("last_face_name", str),
 }
 
 
@@ -50,6 +51,7 @@ async def async_setup_entry(
         AqaraG3Sensor(coordinator, "human_detect", "Human Detect", "mdi:account"),
         AqaraG3Sensor(coordinator, "wifi_rssi", "WiFi RSSI", "mdi:wifi"),
         AqaraG3Sensor(coordinator, "alarm_status", "Alarm Status", "mdi:alarm"),
+        AqaraG3Sensor(coordinator, "last_face_name", "Last Face", "mdi:account-box"),
     ]
 
     async_add_entities(sensors, update_before_add=True)
