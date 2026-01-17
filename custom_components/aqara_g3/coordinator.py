@@ -38,11 +38,27 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             subject_id=config_entry.data["subject_id"],
         )
         self.config_entry = config_entry
+        self._logged_first_response = False
 
     async def _async_update_data(self) -> dict:
         """Fetch data from Aqara API."""
         try:
             data = await self.api.get_device_status()
+            if not self._logged_first_response:
+                self._logged_first_response = True
+                result = data.get("result") if isinstance(data, dict) else None
+                result_list = []
+                if isinstance(result, list):
+                    result_list = result
+                elif isinstance(result, dict):
+                    result_list = result.get("resultList", []) or []
+                _LOGGER.debug(
+                    "Aqara G3 response shape: type=%s, keys=%s, result_type=%s, result_len=%s",
+                    type(data).__name__,
+                    list(data.keys()) if isinstance(data, dict) else None,
+                    type(result).__name__ if result is not None else None,
+                    len(result_list) if isinstance(result_list, list) else None,
+                )
             return data
         except Exception as err:
             raise UpdateFailed(f"Error communicating with API: {err}") from err
