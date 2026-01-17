@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from homeassistant.components.sensor import SensorEntity
+from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -17,10 +17,6 @@ _LOGGER = logging.getLogger(__name__)
 
 # Sensor type mapping: sensor_key -> (api_key, value_type)
 SENSOR_TYPES: dict[str, tuple[str, type[bool] | type[int] | type[str]]] = {
-    "motion_detect": ("mdtrigger_enable", bool),
-    "face_detect": ("face_detect_enable", bool),
-    "pets_detect": ("pets_detect_enable", bool),
-    "human_detect": ("human_detect_enable", bool),
     "wifi_rssi": ("device_wifi_rssi", int),
     "alarm_status": ("alarm_status", bool),
     "last_face_name": ("last_face_name", str),
@@ -46,10 +42,6 @@ async def async_setup_entry(
         return
 
     sensors = [
-        AqaraG3Sensor(coordinator, "motion_detect", "Motion Detect", "mdi:motion-sensor"),
-        AqaraG3Sensor(coordinator, "face_detect", "Face Detect", "mdi:face-recognition"),
-        AqaraG3Sensor(coordinator, "pets_detect", "Pets Detect", "mdi:paw"),
-        AqaraG3Sensor(coordinator, "human_detect", "Human Detect", "mdi:account"),
         AqaraG3Sensor(coordinator, "wifi_rssi", "WiFi RSSI", "mdi:wifi"),
         AqaraG3Sensor(coordinator, "alarm_status", "Alarm Status", "mdi:alarm"),
         AqaraG3Sensor(coordinator, "last_face_name", "Last Face", "mdi:account-box"),
@@ -79,6 +71,9 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
         self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{sensor_key}"
         self._attr_icon = icon
         self._logged_no_data = False
+        if sensor_key == "wifi_rssi":
+            self._attr_native_unit_of_measurement = "dBm"
+            self._attr_state_class = SensorStateClass.MEASUREMENT
 
     @property
     def device_info(self) -> DeviceInfo:

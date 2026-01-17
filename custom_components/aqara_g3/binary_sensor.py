@@ -1,9 +1,9 @@
-"""Switch platform for Aqara Camera G3."""
+"""Binary sensor platform for Aqara Camera G3."""
 from __future__ import annotations
 
 import logging
 
-from homeassistant.components.switch import SwitchEntity
+from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.device_registry import DeviceInfo
@@ -15,13 +15,20 @@ from .coordinator import AqaraG3DataUpdateCoordinator
 
 _LOGGER = logging.getLogger(__name__)
 
+SENSORS = {
+    "motion_detect": ("mdtrigger_enable", "Motion Detect", "mdi:motion-sensor"),
+    "face_detect": ("face_detect_enable", "Face Detect", "mdi:face-recognition"),
+    "pets_detect": ("pets_detect_enable", "Pets Detect", "mdi:paw"),
+    "human_detect": ("human_detect_enable", "Human Detect", "mdi:account"),
+}
+
 
 async def async_setup_entry(
     hass: HomeAssistant,
     entry: ConfigEntry,
     async_add_entities: AddEntitiesCallback,
 ) -> None:
-    """Set up the Aqara Camera G3 switch platform."""
+    """Set up the Aqara Camera G3 binary sensor platform."""
     data = hass.data[DOMAIN].get(entry.entry_id)
     if not data or not isinstance(data, dict):
         _LOGGER.error("Integration data not found or invalid for entry %s", entry.entry_id)
@@ -32,19 +39,32 @@ async def async_setup_entry(
         _LOGGER.error("Coordinator not found or invalid for entry %s", entry.entry_id)
         return
 
-    async_add_entities([AqaraG3VideoSwitch(coordinator)], update_before_add=True)
+    entities = [
+        AqaraG3BinarySensor(coordinator, key, api_key, name, icon)
+        for key, (api_key, name, icon) in SENSORS.items()
+    ]
+    async_add_entities(entities, update_before_add=True)
 
 
-class AqaraG3VideoSwitch(CoordinatorEntity, SwitchEntity):
-    """Switch to control video on/off."""
+class AqaraG3BinarySensor(CoordinatorEntity, BinarySensorEntity):
+    """Representation of an Aqara Camera G3 binary sensor."""
 
-    _attr_name = "Aqara G3 Video"
-    _attr_icon = "mdi:video"
-
-    def __init__(self, coordinator: AqaraG3DataUpdateCoordinator) -> None:
-        """Initialize the switch."""
+    def __init__(
+        self,
+        coordinator: AqaraG3DataUpdateCoordinator,
+        sensor_key: str,
+        api_key: str,
+        sensor_name: str,
+        icon: str,
+    ) -> None:
+        """Initialize the binary sensor."""
         super().__init__(coordinator)
-        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_set_video"
+        self._sensor_key = sensor_key
+        self._api_key = api_key
+        self._attr_name = f"Aqara G3 {sensor_name}"
+        self._attr_unique_id = f"{coordinator.config_entry.entry_id}_{sensor_key}"
+        self._attr_icon = icon
+        self._logged_no_data = False
 
     @property
     def device_info(self) -> DeviceInfo:
@@ -59,33 +79,26 @@ class AqaraG3VideoSwitch(CoordinatorEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool | None:
-        """Return True if video is enabled."""
+        """Return True if the sensor is on."""
         data = self.coordinator.data
         if not isinstance(data, dict):
             return None
 
-        value = data.get("set_video")
+        value = data.get(self._api_key)
         if value is None:
+            if not self._logged_no_data:
+                _LOGGER.debug(
+                    "Missing api key '%s' for %s. Available keys: %s",
+                    self._api_key,
+                    self._sensor_key,
+                    list(data.keys()),
+                )
+                self._logged_no_data = True
             return None
+        self._logged_no_data = False
 
         if isinstance(value, bool):
             return value
         if isinstance(value, str):
             return value.lower() in ("1", "true", "yes", "on")
         return bool(value)
-
-    async def async_turn_on(self, **kwargs) -> None:
-        """Turn on video."""
-        try:
-            await self.coordinator.api.set_video(True)
-            await self.coordinator.async_request_refresh()
-        except Exception as err:
-            _LOGGER.warning("Failed to turn on video: %s", err)
-
-    async def async_turn_off(self, **kwargs) -> None:
-        """Turn off video."""
-        try:
-            await self.coordinator.api.set_video(False)
-            await self.coordinator.async_request_refresh()
-        except Exception as err:
-            _LOGGER.warning("Failed to turn off video: %s", err)
