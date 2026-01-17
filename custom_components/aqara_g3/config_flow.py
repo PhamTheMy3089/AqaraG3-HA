@@ -11,12 +11,14 @@ from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers.aiohttp_client import async_get_clientsession
+from homeassistant.helpers import selector
 
 from .api import AqaraG3API
 from .const import (
     CONF_AQARA_URL,
     CONF_APPID,
     CONF_FACE_MAP,
+    CONF_FACE_NAME_MAP,
     CONF_SUBJECT_ID,
     CONF_TOKEN,
     CONF_USERID,
@@ -128,8 +130,10 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
     ) -> FlowResult:
         """Handle options step for mapping faces to persons."""
         if user_input is not None:
-            face_map = {k: v for k, v in user_input.items() if v}
-            return self.async_create_entry(title="", data={CONF_FACE_MAP: face_map})
+            face_name_map = {k: v for k, v in user_input.items() if v}
+            return self.async_create_entry(
+                title="", data={CONF_FACE_NAME_MAP: face_name_map}
+            )
 
         # Collect face list from coordinator
         face_list: dict[str, str] = {}
@@ -140,16 +144,27 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                 face_list = await coordinator.async_get_face_map()
 
         # Collect person entities
-        person_entities = [state.entity_id for state in self.hass.states.async_all("person")]
-        person_options = [""] + person_entities
+        persons = list(self.hass.states.async_all("person"))
+        person_options = [
+            {"value": state.entity_id, "label": state.name} for state in persons
+        ]
+        # Allow clearing mapping
+        person_options.insert(0, {"value": "", "label": "None"})
 
-        existing = self.config_entry.options.get(CONF_FACE_MAP, {})
+        existing = self.config_entry.options.get(CONF_FACE_NAME_MAP, {})
         schema_dict: dict[vol.Optional, object] = {}
-        for face_id, face_name in face_list.items():
-            label = f"{face_name} ({face_id})"
+        # Build unique face names (one person may have multiple face IDs)
+        face_names = sorted({name for name in face_list.values() if name})
+        for face_name in face_names:
             schema_dict[
-                vol.Optional(face_id, default=existing.get(face_id, ""))
-            ] = vol.In(person_options)
+                vol.Optional(face_name, default=existing.get(face_name, ""))
+            ] = selector.SelectSelector(
+                selector.SelectSelectorConfig(
+                    options=person_options,
+                    multiple=False,
+                    mode=selector.SelectSelectorMode.DROPDOWN,
+                )
+            )
 
         return self.async_show_form(
             step_id="init",

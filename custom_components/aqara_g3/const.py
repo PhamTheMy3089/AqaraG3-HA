@@ -10,6 +10,7 @@ CONF_APPID = "appid"
 CONF_USERID = "userid"
 CONF_SUBJECT_ID = "subject_id"
 CONF_FACE_MAP = "face_map"
+CONF_FACE_NAME_MAP = "face_name_map"
 
 SERVICE_REFRESH_FACE_LIST = "refresh_face_list"
 

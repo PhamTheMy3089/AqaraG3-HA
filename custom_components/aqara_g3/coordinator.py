@@ -11,7 +11,7 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import AqaraG3API
-from .const import CONF_FACE_MAP, DOMAIN
+from .const import CONF_FACE_MAP, CONF_FACE_NAME_MAP, DOMAIN
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -71,14 +71,19 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             if last_face_name:
                 attrs["last_face_name"] = last_face_name
             # Map face id to HA person if configured
-            face_map = self.config_entry.options.get(CONF_FACE_MAP, {})
-            if last_face_id and face_map:
-                person_entity_id = face_map.get(str(last_face_id))
-                if person_entity_id:
-                    state = self.hass.states.get(person_entity_id)
-                    attrs["last_face_person"] = (
-                        state.name if state and state.name else person_entity_id
-                    )
+            # Prefer mapping by face name, fallback to face id
+            face_name_map = self.config_entry.options.get(CONF_FACE_NAME_MAP, {})
+            face_id_map = self.config_entry.options.get(CONF_FACE_MAP, {})
+            person_entity_id = None
+            if last_face_name and face_name_map:
+                person_entity_id = face_name_map.get(str(last_face_name))
+            if not person_entity_id and last_face_id and face_id_map:
+                person_entity_id = face_id_map.get(str(last_face_id))
+            if person_entity_id:
+                state = self.hass.states.get(person_entity_id)
+                attrs["last_face_person"] = (
+                    state.name if state and state.name else person_entity_id
+                )
             if not self._logged_first_response:
                 self._logged_first_response = True
                 result = data.get("result") if isinstance(data, dict) else None
