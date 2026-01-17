@@ -51,6 +51,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             data = await self.api.get_device_status()
             attrs = self._extract_attr_map(data)
             last_face_id = None
+            last_face_ts = None
             last_face_name = None
 
             # Enrich with face list (refresh every 12h) + last face event
@@ -59,6 +60,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             try:
                 face_event = await self.api.get_last_face_event()
                 last_face_id = self._extract_last_face_id(face_event)
+                last_face_ts = self._extract_last_face_ts(face_event)
                 if last_face_id and self._face_map:
                     last_face_name = self._face_map.get(last_face_id)
                 if last_face_id is None and not self._logged_face_event_empty:
@@ -69,6 +71,8 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
 
             if last_face_id:
                 attrs["last_face_id"] = last_face_id
+            if last_face_ts:
+                attrs["last_face_ts"] = last_face_ts
             if last_face_name:
                 attrs["last_face_name"] = last_face_name
             # Map face id to HA person if configured
@@ -243,4 +247,32 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                     or item.get("data")
                     or item.get("attrValue")
                 )
+        return None
+
+    @staticmethod
+    def _extract_last_face_ts(data: dict | None) -> int | None:
+        """Extract the timestamp (ms) of the last face event."""
+        if not isinstance(data, dict):
+            return None
+
+        result = data.get("result")
+        if isinstance(result, dict):
+            history_list = (
+                result.get("data")
+                or result.get("history")
+                or result.get("list")
+                or result.get("resultList")
+                or []
+            )
+        elif isinstance(result, list):
+            history_list = result
+        else:
+            history_list = data.get("history") or data.get("list") or []
+
+        if isinstance(history_list, list) and history_list:
+            item = history_list[0]
+            if isinstance(item, dict):
+                ts = item.get("timeStamp") or item.get("timestamp")
+                if isinstance(ts, (int, float)):
+                    return int(ts)
         return None

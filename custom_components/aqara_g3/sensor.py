@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import time
 
 from homeassistant.components.sensor import SensorEntity, SensorStateClass
 from homeassistant.config_entries import ConfigEntry
@@ -114,6 +115,13 @@ class AqaraG3Sensor(CoordinatorEntity, SensorEntity):
                 return None
             # Reset log flag when data becomes available again
             self._logged_no_data = False
+
+            # Expire last face sensors after 5 minutes
+            if self._sensor_key in ("last_face_name", "last_face_person"):
+                ts_ms = data.get("last_face_ts")
+                if isinstance(ts_ms, (int, float)):
+                    if (time.time() * 1000) - ts_ms > 5 * 60 * 1000:
+                        return None
 
             if value is None:
                 return None
