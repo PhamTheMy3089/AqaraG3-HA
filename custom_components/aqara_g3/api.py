@@ -6,7 +6,7 @@ from typing import Any
 
 import aiohttp
 
-from .const import API_BASE_URL, API_RESOURCE_QUERY
+from .const import API_BASE_URL, API_RESOURCE_QUERY, API_RESOURCE_WRITE
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -109,3 +109,15 @@ class AqaraG3API:
         response = await self._request("POST", API_RESOURCE_QUERY, data=payload)
         return response
 
+    async def set_video(self, enabled: bool) -> dict[str, Any]:
+        """Enable or disable video."""
+        if not self._subject_id:
+            raise ValueError("subject_id is required to set video state")
+
+        payload = {
+            "data": {"set_video": 1 if enabled else 0},
+            "subjectId": self._subject_id,
+        }
+
+        response = await self._request("POST", API_RESOURCE_WRITE, data=payload)
+        return response
