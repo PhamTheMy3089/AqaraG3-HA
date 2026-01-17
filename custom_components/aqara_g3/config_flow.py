@@ -123,7 +123,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
     def __init__(self, config_entry: ConfigEntry) -> None:
         """Initialize options flow."""
-        self.config_entry = config_entry
+        self._config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None
@@ -137,7 +137,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
 
         # Collect face list from coordinator
         face_list: dict[str, str] = {}
-        data = self.hass.data.get(DOMAIN, {}).get(self.config_entry.entry_id)
+        data = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
         if data and isinstance(data, dict):
             coordinator = data.get("coordinator")
             if coordinator:
@@ -151,7 +151,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         # Allow clearing mapping
         person_options.insert(0, {"value": "", "label": "None"})
 
-        existing = self.config_entry.options.get(CONF_FACE_NAME_MAP, {})
+        existing = self._config_entry.options.get(CONF_FACE_NAME_MAP, {})
         schema_dict: dict[vol.Optional, object] = {}
         # Build unique face names (one person may have multiple face IDs)
         face_names = sorted({name for name in face_list.values() if name})
