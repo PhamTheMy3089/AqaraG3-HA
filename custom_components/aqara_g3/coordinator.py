@@ -204,9 +204,13 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
                 if not isinstance(item, dict):
                     continue
                 face_id = item.get("faceId") or item.get("id")
+                face_id_str = item.get("faceIdStr")
                 name = item.get("name") or item.get("faceName")
-                if face_id and name:
-                    face_map[str(face_id)] = str(name)
+                if name:
+                    if face_id:
+                        face_map[str(face_id)] = str(name)
+                    if face_id_str:
+                        face_map[str(face_id_str)] = str(name)
         return face_map
 
     @staticmethod
@@ -217,7 +221,13 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
 
         result = data.get("result")
         if isinstance(result, dict):
-            history_list = result.get("history") or result.get("list") or result.get("resultList") or []
+            history_list = (
+                result.get("data")
+                or result.get("history")
+                or result.get("list")
+                or result.get("resultList")
+                or []
+            )
         elif isinstance(result, list):
             history_list = result
         else:
@@ -228,6 +238,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
             if isinstance(item, dict):
                 return (
                     item.get("faceId")
+                    or item.get("faceIdStr")
                     or item.get("value")
                     or item.get("data")
                     or item.get("attrValue")
