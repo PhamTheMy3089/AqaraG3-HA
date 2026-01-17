@@ -14,7 +14,10 @@
       },
       "init": {
         "title": "Map faces",
-        "description": "Select a Home Assistant person for each Aqara face."
+        "description": "Select a Home Assistant person for each Aqara face.",
+        "data": {
+          "refresh_face_list": "Refresh face list"
+        }
       }
     },
     "error": {

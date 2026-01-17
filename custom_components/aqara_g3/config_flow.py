@@ -125,23 +125,37 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
         """Initialize options flow."""
         self._config_entry = config_entry
 
-    async def async_step_init(
-        self, user_input: dict[str, Any] | None = None
-    ) -> FlowResult:
-        """Handle options step for mapping faces to persons."""
-        if user_input is not None:
-            face_name_map = {k: v for k, v in user_input.items() if v}
-            return self.async_create_entry(
-                title="", data={CONF_FACE_NAME_MAP: face_name_map}
-            )
-
-        # Collect face list from coordinator
+    async def _get_face_list(self) -> dict[str, str]:
+        """Fetch current face list from coordinator."""
         face_list: dict[str, str] = {}
         data = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
         if data and isinstance(data, dict):
             coordinator = data.get("coordinator")
             if coordinator:
                 face_list = await coordinator.async_get_face_map()
+        return face_list
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle options step for mapping faces to persons."""
+        if user_input is not None:
+            if user_input.get("refresh_face_list"):
+                data = self.hass.data.get(DOMAIN, {}).get(self._config_entry.entry_id)
+                if data and isinstance(data, dict):
+                    coordinator = data.get("coordinator")
+                    if coordinator:
+                        await coordinator.async_get_face_map(force_refresh=True)
+                return await self.async_step_init()
+
+            user_input.pop("refresh_face_list", None)
+            face_name_map = {k: v for k, v in user_input.items() if v}
+            return self.async_create_entry(
+                title="", data={CONF_FACE_NAME_MAP: face_name_map}
+            )
+
+        # Collect face list from coordinator
+        face_list = await self._get_face_list()
 
         # Collect person entities
         persons = list(self.hass.states.async_all("person"))
@@ -165,6 +179,7 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
                     mode=selector.SelectSelectorMode.DROPDOWN,
                 )
             )
+        schema_dict[vol.Optional("refresh_face_list", default=False)] = bool
 
         return self.async_show_form(
             step_id="init",
