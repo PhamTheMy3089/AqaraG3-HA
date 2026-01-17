@@ -44,6 +44,7 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
         """Fetch data from Aqara API."""
         try:
             data = await self.api.get_device_status()
+            _LOGGER.warning("Aqara G3 RAW RESPONSE: %s", data)
             if not self._logged_first_response:
                 self._logged_first_response = True
                 result = data.get("result") if isinstance(data, dict) else None
