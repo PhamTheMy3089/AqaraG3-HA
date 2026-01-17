@@ -6,6 +6,8 @@ from typing import Any
 
 import aiohttp
 
+from homeassistant.helpers.aiohttp_client import DEFAULT_TIMEOUT
+
 from .const import API_BASE_URL, API_RESOURCE_QUERY
 
 _LOGGER = logging.getLogger(__name__)
@@ -16,6 +18,7 @@ class AqaraG3API:
 
     def __init__(
         self,
+        session: aiohttp.ClientSession,
         aqara_url: str,
         token: str,
         appid: str,
@@ -23,7 +26,7 @@ class AqaraG3API:
         subject_id: str | None = None,
     ) -> None:
         """Initialize the API client."""
-        self._aqara_url = aqara_url
+        self._session = session
         self._token = token
         self._appid = appid
         self._userid = userid
@@ -35,12 +38,12 @@ class AqaraG3API:
         method: str,
         endpoint: str,
         data: dict[str, Any] | None = None,
-        headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
-        """Make an API request."""
+        """Make an API request using Home Assistant's shared session."""
         url = f"{self._base_url}{endpoint}"
         
-        default_headers = {
+        # Build headers - Aqara API uses "Token" header (not Bearer)
+        headers = {
             "Token": self._token,
             "Appid": self._appid,
             "Content-Type": "application/json; charset=utf-8",
@@ -48,17 +51,31 @@ class AqaraG3API:
         }
         
         if self._userid:
-            default_headers["Userid"] = self._userid
-        
-        if headers:
-            default_headers.update(headers)
+            headers["Userid"] = self._userid
 
-        async with aiohttp.ClientSession() as session:
-            async with session.request(
-                method, url, json=data, headers=default_headers
+        try:
+            async with self._session.request(
+                method,
+                url,
+                json=data,
+                headers=headers,
+                timeout=DEFAULT_TIMEOUT,
             ) as response:
+                if response.status == 401 or response.status == 403:
+                    error_text = await response.text()
+                    _LOGGER.error("Authentication failed: %s", error_text)
+                    raise PermissionError("Invalid authentication credentials") from None
                 response.raise_for_status()
                 return await response.json()
+        except PermissionError:
+            # Re-raise permission errors as-is
+            raise
+        except aiohttp.ClientConnectorError as err:
+            _LOGGER.error("Connection error: %s", err)
+            raise ConnectionError(f"Cannot connect to Aqara API: {err}") from err
+        except aiohttp.ClientError as err:
+            _LOGGER.error("Client error: %s", err)
+            raise ConnectionError(f"Error communicating with Aqara API: {err}") from err
 
     async def get_device_status(self) -> dict[str, Any]:
         """Get device status."""

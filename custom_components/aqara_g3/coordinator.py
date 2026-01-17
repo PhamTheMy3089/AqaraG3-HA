@@ -6,6 +6,7 @@ from datetime import timedelta
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .api import AqaraG3API
@@ -24,10 +25,12 @@ class AqaraG3DataUpdateCoordinator(DataUpdateCoordinator):
         super().__init__(
             hass,
             _LOGGER,
-            name=DOMAIN,
+            name="Aqara G3 Data",
             update_interval=SCAN_INTERVAL,
         )
+        session = async_get_clientsession(hass)
         self.api = AqaraG3API(
+            session=session,
             aqara_url=config_entry.data["aqara_url"],
             token=config_entry.data["token"],
             appid=config_entry.data["appid"],

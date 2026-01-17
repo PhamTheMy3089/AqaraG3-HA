@@ -10,7 +10,9 @@ from homeassistant import config_entries
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
+from .api import AqaraG3API
 from .const import (
     CONF_AQARA_URL,
     CONF_APPID,
@@ -36,8 +38,29 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
-    # TODO: Add actual API validation here
-    # For now, we just return the data
+    session = async_get_clientsession(hass)
+    api = AqaraG3API(
+        session=session,
+        aqara_url=data[CONF_AQARA_URL],
+        token=data[CONF_TOKEN],
+        appid=data[CONF_APPID],
+        userid=data[CONF_USERID],
+        subject_id=data[CONF_SUBJECT_ID],
+    )
+    
+    try:
+        # Test API connection by trying to get device status
+        await api.get_device_status()
+    except PermissionError as err:
+        _LOGGER.error("Invalid authentication: %s", err)
+        raise InvalidAuth from err
+    except ConnectionError as err:
+        _LOGGER.error("Cannot connect to Aqara API: %s", err)
+        raise CannotConnect from err
+    except Exception as err:
+        _LOGGER.error("Unexpected error: %s", err)
+        raise CannotConnect from err
+    
     return {"title": f"Aqara Camera G3 ({data[CONF_SUBJECT_ID]})"}
 
 
@@ -67,6 +90,10 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
+            # Set unique_id to prevent duplicate entries
+            await self.async_set_unique_id(user_input[CONF_SUBJECT_ID])
+            self._abort_if_unique_id_configured()
+            
             return self.async_create_entry(title=info["title"], data=user_input)
 
         return self.async_show_form(
