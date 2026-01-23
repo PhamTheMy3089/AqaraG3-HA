@@ -1,5 +1,7 @@
 # Aqara Camera G3 Integration for Home Assistant
 
+[Tiếng Việt](README.md) | [English](README_EN.md)
+
 Integration cho Aqara Camera G3 trong Home Assistant, có thể cài đặt qua HACS.
 
 ## Cài đặt
