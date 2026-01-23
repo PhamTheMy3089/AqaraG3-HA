@@ -3,12 +3,17 @@
     "step": {
       "user": {
         "title": "Aqara Camera G3",
-        "description": "Nhập thông tin xác thực Aqara API",
+        "description": "Đăng nhập tài khoản Aqara để tự lấy thông tin API",
         "data": {
-          "aqara_url": "Aqara URL",
-          "token": "Token",
-          "appid": "App ID",
-          "userid": "User ID",
+          "username": "Tài khoản",
+          "password": "Mật khẩu",
+          "area": "Khu vực (Area)"
+        }
+      },
+      "device": {
+        "title": "Chọn thiết bị",
+        "description": "Chọn camera từ danh sách thiết bị Aqara.",
+        "data": {
           "subject_id": "Subject ID (Device ID)"
         }
       },
@@ -20,6 +25,7 @@
     "error": {
       "cannot_connect": "Không thể kết nối đến Aqara API",
       "invalid_auth": "Thông tin xác thực không hợp lệ",
+      "no_devices": "Không tìm thấy thiết bị trong tài khoản",
       "unknown": "Đã xảy ra lỗi không xác định"
     },
     "abort": {

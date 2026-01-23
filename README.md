@@ -23,17 +23,16 @@ Integration cho Aqara Camera G3 trong Home Assistant, có thể cài đặt qua 
 
 ## Cấu hình
 
-Sau khi cài đặt, bạn cần cấu hình integration với các thông tin sau:
+Sau khi cài đặt, bạn chỉ cần đăng nhập tài khoản Aqara:
 
-- **Aqara URL**: URL của Aqara API (mặc định: `open-cn.aqara.com`)
-- **Token**: Token xác thực từ Aqara
-- **App ID**: App ID từ Aqara
-- **User ID**: User ID từ Aqara
-- **Subject ID**: Device ID của camera G3
+- **Tài khoản**: Email/phone đăng nhập Aqara
+- **Mật khẩu**: Mật khẩu Aqara
+- **Khu vực (Area)**: CN/EU/US/HMT/OTHER...
 
+Integration sẽ tự lấy **Token**, **App ID**, **User ID** và danh sách thiết bị để bạn chọn **Subject ID**.
 ## Lấy thông tin xác thực
 
-Bạn cần lấy các thông tin xác thực từ Aqara API. Tham khảo file `AqaraG3.json` để biết cách lấy các thông tin này.
+Không cần lấy thủ công. Integration tự đăng nhập và lấy thông tin cần thiết.
 
 ## Tính năng
 
@@ -45,3 +44,6 @@ Bạn cần lấy các thông tin xác thực từ Aqara API. Tham khảo file `
 
 Nếu gặp vấn đề, vui lòng tạo issue trên GitHub repository.
 
+## Cảm ơn
+
+Dự án này tham khảo và chỉnh sửa dựa trên: https://github.com/sdavides/AqaraPOST-Homeassistant

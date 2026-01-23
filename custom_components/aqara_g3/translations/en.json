@@ -3,12 +3,17 @@
     "step": {
       "user": {
         "title": "Aqara Camera G3",
-        "description": "Enter your Aqara API credentials",
+        "description": "Sign in to your Aqara account to fetch API details",
         "data": {
-          "aqara_url": "Aqara URL",
-          "token": "Token",
-          "appid": "App ID",
-          "userid": "User ID",
+          "username": "Username",
+          "password": "Password",
+          "area": "Region (Area)"
+        }
+      },
+      "device": {
+        "title": "Select device",
+        "description": "Select a camera from your Aqara device list.",
+        "data": {
           "subject_id": "Subject ID (Device ID)"
         }
       },
@@ -20,6 +25,7 @@
     "error": {
       "cannot_connect": "Unable to connect to Aqara API",
       "invalid_auth": "Invalid authentication credentials",
+      "no_devices": "No devices found for this account",
       "unknown": "Unexpected error occurred"
     },
     "abort": {

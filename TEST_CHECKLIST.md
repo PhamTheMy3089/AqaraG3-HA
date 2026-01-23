@@ -12,16 +12,18 @@
    - [ ] Tìm thấy "Aqara Camera G3 via Cloud API" trong danh sách
    - [ ] Click vào integration và form hiển thị đúng
 
-2. **Điền thông tin cấu hình**
-   - [ ] Aqara URL: `open-cn.aqara.com` (hoặc URL khác)
-   - [ ] Token: Token từ Aqara
-   - [ ] App ID: App ID từ Aqara
-   - [ ] User ID: User ID từ Aqara
-   - [ ] Subject ID: Device ID của camera
+2. **Điền thông tin đăng nhập**
+   - [ ] Tài khoản: Email/phone Aqara
+   - [ ] Mật khẩu: Mật khẩu Aqara
+   - [ ] Khu vực (Area): CN/EU/US/HMT/OTHER...
+3. **Chọn thiết bị**
+   - [ ] Danh sách thiết bị hiển thị
+   - [ ] Chọn đúng Subject ID (Device ID) của camera
 
-3. **Test Validation**
+4. **Test Validation**
    - [ ] Với thông tin đúng: Integration được tạo thành công
    - [ ] Với thông tin sai: Hiển thị lỗi "cannot_connect" hoặc "invalid_auth"
+   - [ ] Không có thiết bị: Hiển thị lỗi "no_devices"
 
 ## Test Sensors
 
@@ -53,8 +55,8 @@ Sau khi integration được cấu hình:
 ## Test Error Handling
 
 1. **Test với thông tin sai**
-   - [ ] Token sai → Hiển thị lỗi "invalid_auth"
-   - [ ] URL sai → Hiển thị lỗi "cannot_connect"
+   - [ ] User/Pass sai → Hiển thị lỗi "invalid_auth"
+   - [ ] Khu vực sai → Có thể báo "cannot_connect" hoặc "invalid_auth"
    - [ ] Subject ID sai → Có thể không có dữ liệu nhưng không crash
 
 2. **Test khi API không khả dụng**

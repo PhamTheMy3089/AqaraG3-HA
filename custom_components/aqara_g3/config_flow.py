@@ -7,34 +7,45 @@ from typing import Any
 import voluptuous as vol
 
 from homeassistant import config_entries
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.exceptions import HomeAssistantError
-from homeassistant.helpers.aiohttp_client import async_get_clientsession
 from homeassistant.helpers import selector
+from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
-from .api import AqaraG3API
+from .auth import AqaraAccountClient
 from .const import (
+    AQARA_AREA_MAP,
     CONF_AQARA_URL,
     CONF_APPID,
-    CONF_FACE_MAP,
+    CONF_AREA,
     CONF_FACE_NAME_MAP,
+    CONF_PASSWORD,
     CONF_SUBJECT_ID,
     CONF_TOKEN,
     CONF_USERID,
-    DEFAULT_AQARA_URL,
+    CONF_USERNAME,
     DOMAIN,
 )
 
 _LOGGER = logging.getLogger(__name__)
 
+AREA_OPTIONS = [
+    {"value": key, "label": key} for key in AQARA_AREA_MAP.keys()
+]
+
 STEP_USER_DATA_SCHEMA = vol.Schema(
     {
-        vol.Required(CONF_AQARA_URL, default=DEFAULT_AQARA_URL): str,
-        vol.Required(CONF_TOKEN): str,
-        vol.Required(CONF_APPID): str,
-        vol.Required(CONF_USERID): str,
-        vol.Required(CONF_SUBJECT_ID): str,
+        vol.Required(CONF_USERNAME): str,
+        vol.Required(CONF_PASSWORD): str,
+        vol.Required(CONF_AREA, default="CN"): selector.SelectSelector(
+            selector.SelectSelectorConfig(
+                options=AREA_OPTIONS,
+                multiple=False,
+                mode=selector.SelectSelectorMode.DROPDOWN,
+            )
+        ),
     }
 )
 
@@ -42,18 +53,13 @@ STEP_USER_DATA_SCHEMA = vol.Schema(
 async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str, Any]:
     """Validate the user input allows us to connect."""
     session = async_get_clientsession(hass)
-    api = AqaraG3API(
-        session=session,
-        aqara_url=data[CONF_AQARA_URL],
-        token=data[CONF_TOKEN],
-        appid=data[CONF_APPID],
-        userid=data[CONF_USERID],
-        subject_id=data[CONF_SUBJECT_ID],
-    )
-    
+    client = AqaraAccountClient(session=session, area=data[CONF_AREA])
+
     try:
-        # Test API connection by trying to get device status
-        await api.get_device_status()
+        credentials = await client.async_login(
+            data[CONF_USERNAME], data[CONF_PASSWORD]
+        )
+        devices = await client.async_get_devices()
     except PermissionError as err:
         _LOGGER.error("Invalid authentication: %s", err)
         raise InvalidAuth from err
@@ -63,14 +69,16 @@ async def validate_input(hass: HomeAssistant, data: dict[str, Any]) -> dict[str,
     except Exception as err:
         _LOGGER.error("Unexpected error: %s", err)
         raise CannotConnect from err
-    
-    return {"title": f"Aqara Camera G3 ({data[CONF_SUBJECT_ID]})"}
+
+    return {"credentials": credentials, "devices": devices}
 
 
 class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     """Handle a config flow for Aqara Camera G3."""
 
     VERSION = 1
+    _login_data: dict[str, Any] | None = None
+    _devices: list[dict[str, Any]] | None = None
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -93,14 +101,82 @@ class ConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             _LOGGER.exception("Unexpected exception")
             errors["base"] = "unknown"
         else:
-            # Set unique_id to prevent duplicate entries
-            await self.async_set_unique_id(user_input[CONF_SUBJECT_ID])
-            self._abort_if_unique_id_configured()
-            
-            return self.async_create_entry(title=info["title"], data=user_input)
+            self._login_data = info["credentials"]
+            self._devices = info["devices"]
+            return await self.async_step_device()
 
         return self.async_show_form(
             step_id="user", data_schema=STEP_USER_DATA_SCHEMA, errors=errors
+        )
+
+    async def async_step_device(
+        self, user_input: dict[str, Any] | None = None
+    ) -> FlowResult:
+        """Handle device selection step."""
+        if not self._login_data:
+            return await self.async_step_user()
+
+        errors: dict[str, str] = {}
+        if user_input is not None:
+            subject_id = user_input[CONF_SUBJECT_ID]
+            entry_data = {
+                CONF_AQARA_URL: self._login_data[CONF_AQARA_URL],
+                CONF_TOKEN: self._login_data[CONF_TOKEN],
+                CONF_APPID: self._login_data[CONF_APPID],
+                CONF_USERID: self._login_data[CONF_USERID],
+                CONF_SUBJECT_ID: subject_id,
+            }
+            await self.async_set_unique_id(subject_id)
+            self._abort_if_unique_id_configured()
+            title = f"Aqara Camera G3 ({subject_id})"
+            return self.async_create_entry(title=title, data=entry_data)
+
+        schema = self._build_device_schema(errors)
+        return self.async_show_form(
+            step_id="device",
+            data_schema=schema,
+            errors=errors,
+        )
+
+    def _build_device_schema(self, errors: dict[str, str]) -> vol.Schema:
+        """Build device selection schema from fetched list."""
+        devices = self._devices or []
+        options: list[dict[str, str]] = []
+        for item in devices:
+            if not isinstance(item, dict):
+                continue
+            device_id = (
+                item.get("subjectId")
+                or item.get("deviceId")
+                or item.get("did")
+                or item.get("devId")
+                or item.get("id")
+            )
+            if not device_id:
+                continue
+            name = (
+                item.get("name")
+                or item.get("deviceName")
+                or item.get("positionName")
+                or item.get("model")
+            )
+            label = f"{name} ({device_id})" if name else str(device_id)
+            options.append({"value": str(device_id), "label": label})
+
+        if not options:
+            errors["base"] = "no_devices"
+            return vol.Schema({vol.Required(CONF_SUBJECT_ID): str})
+
+        return vol.Schema(
+            {
+                vol.Required(CONF_SUBJECT_ID): selector.SelectSelector(
+                    selector.SelectSelectorConfig(
+                        options=options,
+                        multiple=False,
+                        mode=selector.SelectSelectorMode.DROPDOWN,
+                    )
+                )
+            }
         )
 
     @staticmethod
@@ -176,4 +252,3 @@ class OptionsFlowHandler(config_entries.OptionsFlow):
             data_schema=vol.Schema(schema_dict),
             description_placeholders={"faces": ", ".join(face_list.values()) or "none"},
         )
-

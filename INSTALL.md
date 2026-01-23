@@ -31,13 +31,12 @@
 1. Sau khi Home Assistant khởi động lại, vào **Settings** > **Devices & Services**
 2. Click **Add Integration**
 3. Tìm và chọn **Aqara Camera G3**
-4. Điền thông tin:
-   - **Aqara URL**: URL của Aqara API (mặc định: `open-cn.aqara.com`)
-   - **Token**: Token xác thực từ Aqara
-   - **App ID**: App ID từ Aqara
-   - **User ID**: User ID từ Aqara
-   - **Subject ID**: Device ID của camera G3 (có thể tìm trong Node-RED flow)
-5. Click **Submit**
+4. Điền thông tin đăng nhập:
+   - **Tài khoản**: Email/phone đăng nhập Aqara
+   - **Mật khẩu**: Mật khẩu Aqara
+   - **Khu vực (Area)**: CN/EU/US/HMT/OTHER...
+5. Chọn **Subject ID** (Device ID) từ danh sách thiết bị
+6. Click **Submit**
 
 ## Cài đặt thủ công
 
@@ -57,16 +56,7 @@ Làm theo các bước tương tự như phần "Cài đặt qua HACS" - Bước
 
 ## Lấy thông tin xác thực
 
-Các thông tin xác thực cần thiết có thể được lấy từ:
-
-1. **Node-RED Flow**: Trong file `AqaraG3.json`, tìm các global variables:
-   - `subjectId`: Device ID của camera
-   - `token`: Token xác thực
-   - `appid`: App ID
-   - `userid`: User ID
-   - `aqara_url`: URL của Aqara API
-
-2. **Aqara App**: Đăng nhập vào Aqara app và kiểm tra thông tin API trong developer settings
+Không cần lấy thủ công. Integration tự đăng nhập và lấy các thông tin cần thiết từ Aqara.
 
 ## Kiểm tra cài đặt
 
