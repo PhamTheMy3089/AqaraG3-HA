@@ -60,25 +60,80 @@ class AqaraAccountClient:
             "encryptType": 2,
             "password": self._encrypt_password(password),
         }
-        response = await self._request("POST", "/lumi/user/login", payload=payload)
-        if not isinstance(response, dict) or response.get("code") != 0:
-            raise PermissionError("Invalid authentication credentials")
+        payload_str = json.dumps(payload or {}, separators=(",", ":"), ensure_ascii=False)
+        headers = self._build_headers(payload_str)
+        headers.setdefault("Content-Type", "application/json")
+        url = f"{self._server}/app/v1.0/lumi/user/login"
 
-        result = response.get("result") or {}
-        token = result.get("token")
-        userid = result.get("userId")
-        if not token or not userid:
-            raise PermissionError("Invalid authentication credentials")
+        try:
+            async with self._session.request(
+                "POST",
+                url,
+                data=payload_str,
+                headers=headers,
+                timeout=aiohttp.ClientTimeout(total=15),
+            ) as response:
+                response_text = await response.text()
 
-        self._token = str(token)
-        self._userid = str(userid)
+                if response.status in (401, 403):
+                    error_data = {}
+                    try:
+                        error_data = json.loads(response_text)
+                    except:
+                        pass
+                    error_msg = error_data.get("message", "Invalid authentication credentials")
+                    raise PermissionError(
+                        f"Authentication failed: {error_msg} (code: {error_data.get('code', 'N/A')})"
+                    )
 
-        return {
-            "token": self._token,
-            "userid": self._userid,
-            "appid": self._appid,
-            "aqara_url": self.aqara_url,
-        }
+                if response.status >= 400:
+                    error_data = {}
+                    try:
+                        error_data = json.loads(response_text)
+                        error_msg = error_data.get("message", f"HTTP {response.status}")
+                        error_code = error_data.get("code", "N/A")
+                        raise ConnectionError(
+                            f"API error: {error_msg} (code: {error_code}, HTTP: {response.status})"
+                        )
+                    except:
+                        raise ConnectionError(f"HTTP {response.status} error: {response_text}")
+
+                response.raise_for_status()
+                data = await response.json()
+
+                if not isinstance(data, dict):
+                    raise PermissionError(f"Invalid response format: {response_text}")
+
+                if data.get("code") != 0:
+                    error_msg = data.get("message", "Unknown error")
+                    error_code = data.get("code", "N/A")
+                    raise PermissionError(f"Login failed: {error_msg} (code: {error_code})")
+
+                result = data.get("result") or {}
+                token = result.get("token")
+                userid = result.get("userId")
+                if not token or not userid:
+                    raise PermissionError("Invalid response: missing token or userId")
+
+                self._token = str(token)
+                self._userid = str(userid)
+
+                return {
+                    "token": self._token,
+                    "userid": self._userid,
+                    "appid": self._appid,
+                    "aqara_url": self.aqara_url,
+                }
+        except PermissionError:
+            raise
+        except ConnectionError:
+            raise
+        except aiohttp.ClientConnectorError as err:
+            raise ConnectionError(f"Network error: {err}") from err
+        except aiohttp.ClientError as err:
+            raise ConnectionError(f"Network error: {err}") from err
+        except Exception as err:
+            raise ConnectionError(f"Unexpected error during login: {err}") from err
 
     async def async_get_devices(self) -> list[dict[str, Any]]:
         """Fetch device list for the account."""

@@ -66,6 +66,11 @@ AQARA_AREA_MAP: dict[str, dict[str, str]] = {
         "appid": "444c476ef7135e53330f46e7",
         "appkey": "NULL",
     },
+    "SG": {
+        "server": "https://sgp-aiot-api.aqara.com",
+        "appid": "444c476ef7135e53330f46e7",
+        "appkey": "NULL",
+    },
     "HMT": {
         "server": "https://aiot-rpc-usa.aqara.com",
         "appid": "444c476ef7135e53330f46e7",
